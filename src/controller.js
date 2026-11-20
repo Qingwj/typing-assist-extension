@@ -12,6 +12,17 @@
 
     let stopRequested = false;
     let running = false;
+    let statusForwarder = null; // 可选：把状态文本转发出去（iframe→主 frame）
+
+    function setStatus(text) {
+      panel.setStatus(text);
+      if (typeof statusForwarder === "function") statusForwarder(text);
+    }
+
+    // 由宿主调用：注入状态转发函数
+    function setStatusBridge(fn) {
+      statusForwarder = fn;
+    }
 
     function requestStop() {
       stopRequested = true;
@@ -22,18 +33,18 @@
       const text = request && request.text ? request.text : "";
       const speed = (request && request.speed) || "normal";
       if (!text) {
-        panel.setStatus("先把要输入的内容填进文本框");
+        setStatus("先把要输入的内容填进文本框");
         return { started: false };
       }
       const target = getTarget();
       if (!target || !target.el || !target.el.isConnected) {
-        panel.setStatus("请先点击网页上的目标输入框");
+        setStatus("请先点击网页上的目标输入框");
         return { started: false };
       }
       running = true;
       stopRequested = false;
       panel.setRunning(true);
-      panel.setStatus("正在输入…");
+      setStatus("正在输入…");
       let result;
       try {
         result = await typeText(target.el, text, {
@@ -43,20 +54,20 @@
             return stopRequested;
           },
           onProgress: function (i, total) {
-            panel.setStatus("正在输入 " + i + "/" + total);
+            setStatus("正在输入 " + i + "/" + total);
           },
         });
       } catch (err) {
-        panel.setStatus("输入中断：" + (err && err.message ? err.message : err));
+        setStatus("输入中断：" + (err && err.message ? err.message : err));
         return { started: true, error: err };
       } finally {
         running = false;
         panel.setRunning(false);
       }
       if (result && result.cancelled) {
-        panel.setStatus("已停止（" + result.typed + "/" + countCodePoints(text) + "）");
+        setStatus("已停止（" + result.typed + "/" + countCodePoints(text) + "）");
       } else {
-        panel.setStatus("完成");
+        setStatus("完成");
       }
       return { started: true, result: result };
     }
@@ -64,6 +75,7 @@
     return {
       start: start,
       requestStop: requestStop,
+      setStatusBridge: setStatusBridge,
       isRunning: function () {
         return running;
       },

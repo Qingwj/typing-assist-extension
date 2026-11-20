@@ -14,7 +14,7 @@
 
 1. 面板默认隐藏。点击浏览器工具栏上的扩展图标，在当前页面显示面板（再点一次隐藏；也可用快捷键 **Alt+Shift+I**）。面板可拖动标题栏移动，「−」折叠
 2. 在面板文本框里填好要输入的内容，选择速度档（慢 / 正常 / 快 / 极快）
-3. 用鼠标把光标点进网页的目标输入框（`input`、`textarea` 或 `contenteditable` 均可）
+3. 用鼠标把光标点进网页的目标输入框（`input`、`textarea`、`contenteditable`，以及 iframe 内的富文本编辑器如 UEditor 均可）
 4. 点「开始输入」——扩展会先回到你刚才记录的光标位置，再逐字键入
 5. 输入过程中按钮变为「停止」，可随时中止（已输入的内容保留）
 
@@ -22,9 +22,10 @@
 
 ## 原理简述
 
-- 内容脚本在每个页面注入一个 Shadow DOM 悬浮面板，记录最后获得焦点的可编辑元素及其光标位置
+- 内容脚本在每个页面（含 iframe，`all_frames: true`）注入，记录最后获得焦点的可编辑元素及其光标位置
 - 点「开始输入」后，逐字符派发 `keydown` → 插入文本 → 触发 `input` → `keyup`
 - `input`/`textarea` 通过原生原型 value setter 写入，兼容 React/Vue 受控组件；`contenteditable` 使用 `execCommand('insertText')`（带 Range 回退）
+- 目标在 iframe 里时（UEditor 等富文本编辑器），主 frame 面板经 background 把打字请求转发到对应 frame 执行，进度回报显示在面板上
 - 每字符间隔随机（2–250ms，依速度档而定），模拟人工手速
 
 ## 已知限制
@@ -32,16 +33,16 @@
 - 派发的键盘事件带 `isTrusted: false` 标记。绝大多数禁止粘贴的网页只拦截 `paste`/Ctrl+V，不受影响；若目标网站专门检测该标记（少见），此版本会失效
 - 不模拟输入法的组合过程（IME composition），中文按字符直接插入
 - 不持久化文本与设置，刷新页面后重置
-- 仅在当前页面主框架生效（不注入 iframe）
+- 跨域 iframe 编辑器仅在目标可聚焦时生效；极端定制编辑器可能不响应合成输入
 
 ## 目录结构
 
 ```
-manifest.json        扩展清单（Manifest V3）
-background.js        工具栏图标点击 → 切换面板显示
-content.js           内容脚本入口：接线、快捷键
+manifest.json        扩展清单（Manifest V3，all_frames）
+background.js        工具栏图标点击切换面板 + frame 间消息转发
+content.js           内容脚本入口：接线、快捷键、iframe 协作
 src/core.js          码点切分、速度档、按键映射
 src/typing.js        文本插入、打字引擎、焦点跟踪
-src/panel.js         Shadow DOM 悬浮面板
-src/controller.js    启动/停止控制（异常安全）
+src/panel.js         Shadow DOM 悬浮面板（仅主 frame）
+src/controller.js    启动/停止控制（异常安全、状态转发）
 ```

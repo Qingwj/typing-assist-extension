@@ -166,7 +166,7 @@
     panel.appendChild(header);
     panel.appendChild(body);
     shadow.appendChild(panel);
-    doc.documentElement.appendChild(host);
+    (doc.body || doc.documentElement).appendChild(host);
 
     button.addEventListener("click", function () {
       if (button.dataset.running === "1") {

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "模拟键入助手",
-  "version": "0.2.0",
+  "version": "0.2.2",
   "description": "把预填文本逐字符模拟键入到禁止粘贴的网页输入框",
   "action": {
     "default_title": "显示/隐藏模拟键入面板"
@@ -14,7 +14,9 @@
       "matches": ["<all_urls>"],
       "js": ["src/core.js", "src/typing.js", "src/panel.js", "src/controller.js", "content.js"],
       "run_at": "document_idle",
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     }
   ]
 }

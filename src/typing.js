@@ -220,9 +220,34 @@
       refresh(node);
     }
 
+    // 从当前选区反推可编辑元素：点击 contenteditable 时 focusin 先于选区建立，
+    // 只能靠随后的 selectionchange 补记目标
+    function editableFromSelection() {
+      try {
+        const view = doc.defaultView;
+        const sel = view && view.getSelection();
+        if (!sel || sel.rangeCount === 0) return null;
+        let node = sel.getRangeAt(0).startContainer;
+        if (node && node.nodeType === 3) node = node.parentNode;
+        let cur = node;
+        while (cur && cur !== doc) {
+          if (isEditable(cur)) return cur;
+          cur = cur.parentNode;
+        }
+      } catch (e) {
+        /* 选区不可用 */
+      }
+      return null;
+    }
+
     function onSelectionChange() {
       const active = doc.activeElement;
-      if (saved && active === saved.el) refresh(active);
+      if (saved && active === saved.el) {
+        refresh(active);
+        return;
+      }
+      const fromSelection = editableFromSelection();
+      if (fromSelection) refresh(fromSelection);
     }
 
     function onFocusOut(ev) {
